@@ -203,7 +203,7 @@ if __name__ == '__main__':
     file_names = os.listdir("../data/yahoo")
     # for file_name in file_names:
     # for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv"]:
-    for file_name in ["TSLA.csv"]:
+    for file_name in ["NVDA.csv"]:
         ticker = file_name.strip(".csv")
         if ticker not in good_stock_set:
             print(ticker + "*******not in good stock *******")

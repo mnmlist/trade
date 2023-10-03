@@ -3,6 +3,7 @@ import os
 
 import backtrader as bt
 import backtrader.analyzers as btanalyzers
+import talib
 
 
 # index_data = bt.feeds.GenericCSVData(
@@ -73,8 +74,12 @@ class TestStrategy(bt.Strategy):
         # self.ao_month_high = bt.ind.Highest(self.ao, period=20)
         # self.close_high = bt.ind.Highest(self.dataclose, period=10)
 
-        self.mo = bt.indicators.MomentumOscillator()
+        # self.mo = bt.indicators.MomentumOscillator()
         self.rmi = bt.indicators.RSI_EMA()
+        self.ad = bt.talib.AD(self.datas[0].high, self.datas[0].low, self.datas[0].close, self.datas[0].volume)
+        self.adosc = bt.talib.ADOSC(self.datas[0].high, self.datas[0].low, self.datas[0].close, self.datas[0].volume, fastperiod=5, slowperiod=20)
+        self.obv = bt.talib.OBV(self.datas[0].close, self.datas[0].volume)
+
 
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
@@ -158,7 +163,7 @@ class TestStrategy(bt.Strategy):
             # 价格小于长期均线，观望
             if self.dataclose < self.ema30 or self.dataclose < self.ema15:
                 return
-            if self.rmi <= 50:
+            if self.rmi >= 70:
                 return
             # if self.ao_month_high * 3 < self.ao_year_high:
             #     return
