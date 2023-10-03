@@ -44,11 +44,11 @@ class TestStrategy(bt.Strategy):
         self.buycomm = None
         self.global_sell_date = ''
 
-        # self.ema2 = bt.indicators.ExponentialMovingAverage(
-        #     self.datas[0], period=10)
-        #
-        # self.ema4 = bt.indicators.ExponentialMovingAverage(
-        #     self.datas[0], period=20)
+        self.ema2 = bt.indicators.ExponentialMovingAverage(
+            self.datas[0], period=10)
+
+        self.ema4 = bt.indicators.ExponentialMovingAverage(
+            self.datas[0], period=20)
 
         self.ema10 = bt.indicators.ExponentialMovingAverage(
             self.datas[0], period=50)
@@ -69,7 +69,6 @@ class TestStrategy(bt.Strategy):
         #     self.datas[1], period=200)
         self.ao = bt.indicators.AwesomeOscillator()
         self.mo = bt.indicators.MomentumOscillator()
-        self.rmi = bt.indicators.RSI_EMA()
 
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
@@ -149,18 +148,13 @@ class TestStrategy(bt.Strategy):
             # 价格小于长期均线，观望
             if self.dataclose < self.ema30 or self.dataclose < self.ema15:
                 return
-            if self.rmi <= 50:
-                return
             if self.ema10[-1] < self.ema30[-1] and self.ema10[0] > self.ema30[0]:
-                print("Cross Over match, ema10[-1]:{}, self.ema30[-1]:{}, self.ema10[0]:{}, self.ema30[0]:{}".format(self.ema10[-1], self.ema30[-1], self.ema10[0], self.ema30[0]))
                 self.order = self.buy()
             elif self.dataclose > self.ema30[0] and self.dataclose > self.ema15[0] and self.dataclose > self.ema10[0] \
                     and self.ema10[0] > self.ema30[0] and self.ema10[0] > self.ema15[0] and self.ema15[0] > self.ema30[0]:
                 self.order = self.buy()
             elif self.ao[-1] < 0 and self.ao[0] > 0:
-                if self.ao[-5] * self.ao[-20] > 0:
-                    print("AO match, date:{}, self.ao[-1]:{}, self.ao[0]:{}, self.ao[-5]:{},self.ao[-20]:{}".format(self.datas[0].datetime.date(0), self.ao[-1], self.ao[0], self.ao[-5], self.ao[-20]))
-                    self.order = self.buy()
+                self.order = self.buy()
 
     def stop(self):
         self.log(u'(金叉死叉有用吗) Ending Value %.2f' %

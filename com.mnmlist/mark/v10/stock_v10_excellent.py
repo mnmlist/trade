@@ -26,6 +26,7 @@ def get_delta_day(d1, d2):
     delta = d1 - d2
     return delta.days
 
+
 class TestStrategy(bt.Strategy):
     """
     继承并构建自己的bt策略
@@ -43,7 +44,7 @@ class TestStrategy(bt.Strategy):
         self.buyprice = None
         self.buycomm = None
         self.global_sell_date = ''
-
+        self.global_buy_price = self.dataclose
         # self.ema2 = bt.indicators.ExponentialMovingAverage(
         #     self.datas[0], period=10)
         #
@@ -68,6 +69,10 @@ class TestStrategy(bt.Strategy):
         # self.index_ema30 = bt.indicators.ExponentialMovingAverage(
         #     self.datas[1], period=200)
         self.ao = bt.indicators.AwesomeOscillator()
+        # self.ao_year_high = bt.ind.Highest(self.ao, period=60)
+        # self.ao_month_high = bt.ind.Highest(self.ao, period=20)
+        # self.close_high = bt.ind.Highest(self.dataclose, period=10)
+
         self.mo = bt.indicators.MomentumOscillator()
         self.rmi = bt.indicators.RSI_EMA()
 
@@ -85,6 +90,7 @@ class TestStrategy(bt.Strategy):
                 self.buyprice = order.executed.price
                 self.buycomm = order.executed.comm
                 self.bar_executed_close = self.dataclose[0]
+                self.global_buy_price = order.executed.price
             else:
                 self.log('SELL EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f, cash %.2f, value %.2f, close %.2f' %
                          (order.executed.price,
@@ -119,7 +125,12 @@ class TestStrategy(bt.Strategy):
         # index_30 = self.index_ema30[0]
         # index_close = self.index_close[0]
         if self.position:
-            if (self.ema10[-1] > self.ema30[-1] and self.ema10[0] < self.ema30[0]):
+            if self.dataclose < self.global_buy_price and (self.global_buy_price - self.dataclose) / self.global_buy_price > 0.15:
+                print("止损, self.dataclose:{}, self.global_buy_price:{}, 距离最高点回落:{}".format(self.dataclose, self.global_buy_price, (
+                                                                                                       self.global_buy_price - self.dataclose) / self.global_buy_price))
+                self.global_sell_date = str(self.datas[0].datetime.date(0))
+                self.order = self.close()
+            elif (self.ema10[-1] > self.ema30[-1] and self.ema10[0] < self.ema30[0]):
                 self.order = self.close()
             elif self.dataclose < self.ema30[0]:
                 # self.global_sell_date = str(self.datas[0].datetime.date(0))
@@ -139,10 +150,8 @@ class TestStrategy(bt.Strategy):
             if global_sell_date == "":
                 self.global_sell_date = cur_date
             delta_day = get_delta_day(cur_date, self.global_sell_date)
-            if global_sell_date != '' and delta_day < 120:
+            if global_sell_date != '' and delta_day < 60:
                 return
-            # if self.dataclose <= self.ema4 or self.dataclose <= self.ema2:
-            #     return
             # 价格过热或过冷
             if self.ao >= 49 or self.ao <= -30:
                 return
@@ -151,15 +160,20 @@ class TestStrategy(bt.Strategy):
                 return
             if self.rmi <= 50:
                 return
+            # if self.ao_month_high * 3 < self.ao_year_high:
+            #     return
             if self.ema10[-1] < self.ema30[-1] and self.ema10[0] > self.ema30[0]:
-                print("Cross Over match, ema10[-1]:{}, self.ema30[-1]:{}, self.ema10[0]:{}, self.ema30[0]:{}".format(self.ema10[-1], self.ema30[-1], self.ema10[0], self.ema30[0]))
+                print("Cross Over match, ema10[-1]:{}, self.ema30[-1]:{}, self.ema10[0]:{}, self.ema30[0]:{}".format(
+                    self.ema10[-1], self.ema30[-1], self.ema10[0], self.ema30[0]))
                 self.order = self.buy()
             elif self.dataclose > self.ema30[0] and self.dataclose > self.ema15[0] and self.dataclose > self.ema10[0] \
-                    and self.ema10[0] > self.ema30[0] and self.ema10[0] > self.ema15[0] and self.ema15[0] > self.ema30[0]:
+                    and self.ema10[0] > self.ema30[0] and self.ema10[0] > self.ema15[0] and self.ema15[0] > self.ema30[
+                0]:
                 self.order = self.buy()
             elif self.ao[-1] < 0 and self.ao[0] > 0:
                 if self.ao[-5] * self.ao[-20] > 0:
-                    print("AO match, date:{}, self.ao[-1]:{}, self.ao[0]:{}, self.ao[-5]:{},self.ao[-20]:{}".format(self.datas[0].datetime.date(0), self.ao[-1], self.ao[0], self.ao[-5], self.ao[-20]))
+                    print("AO match, date:{}, self.ao[-1]:{}, self.ao[0]:{}, self.ao[-5]:{},self.ao[-20]:{}".format(
+                        self.datas[0].datetime.date(0), self.ao[-1], self.ao[0], self.ao[-5], self.ao[-20]))
                     self.order = self.buy()
 
     def stop(self):
@@ -168,7 +182,7 @@ class TestStrategy(bt.Strategy):
 
 
 if __name__ == '__main__':
-    result_file_name = "result-v9-13year.csv"
+    result_file_name = "result-10.csv"
     file = open(result_file_name, "w")
 
     good_stocks = ["NVDA", "ENPH", "IDXX", "MSFT", "GNRC", "CZR", "AAPL", "CPRT", "LRCX", "ALGN", "EPAM", "SEDG",
@@ -189,7 +203,7 @@ if __name__ == '__main__':
     file_names = os.listdir("../data/yahoo")
     # for file_name in file_names:
     # for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv"]:
-    for file_name in ["NFLX.csv"]:
+    for file_name in ["NVDA.csv"]:
         ticker = file_name.strip(".csv")
         if ticker not in good_stock_set:
             print(ticker + "*******not in good stock *******")
@@ -250,4 +264,3 @@ if __name__ == '__main__':
     file.writelines(result_lines)
     file.flush()
     cerebro.plot()
-
