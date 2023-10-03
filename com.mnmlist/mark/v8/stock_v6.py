@@ -3,7 +3,8 @@ import os
 
 import backtrader as bt
 import backtrader.analyzers as btanalyzers
-import numpy as np
+import pandas as pd
+import quantstats
 
 index_data = bt.feeds.GenericCSVData(
     dataname='data/yahoo/' + "NASDAQ.csv",
@@ -18,6 +19,7 @@ index_data = bt.feeds.GenericCSVData(
     volume=5,
     openinterest=5
 )
+
 
 class TestStrategy(bt.Strategy):
     """
@@ -54,7 +56,8 @@ class TestStrategy(bt.Strategy):
 
         self.index_ema30 = bt.indicators.ExponentialMovingAverage(
             self.datas[1], period=200)
-        self.rmi = bt.indicators.RSI_EMA()
+        # self.sma = bt.talib.SMA(self.data, timeperiod=self.p.period)
+        # self.rmi = bt.indicators.RSI_EMA()
 
         # params = (
         #     ('fast', 5),
@@ -62,7 +65,7 @@ class TestStrategy(bt.Strategy):
         #     ('movav', MovAv.SMA),
         # )
         bt.indicators.AwesomeOscillator()
-        # bt.indicators.RSI_EMA()
+        bt.indicators.RSI_EMA()
 
         # bt.indicators.ExponentialMovingAverage(self.datas[0], period=150)
         # bt.indicators.WeightedMovingAverage(self.datas[0], period=150,
@@ -119,22 +122,19 @@ class TestStrategy(bt.Strategy):
         index_30 = self.index_ema30[0]
         index_close = self.index_close[0]
         if self.position:
-            if self.rmi > 90:
-                self.order = self.close()
-            elif (self.ema10[-1] > self.ema30[-1] and self.ema10[0] < self.ema30[0]):
+            if (self.ema10[-1] > self.ema30[-1] and self.ema10[0] < self.ema30[0]):
                 self.order = self.close()
             elif self.dataclose < self.ema15[0]:
                 self.order = self.close()
         else:
             if index_10 > index_close and index_10 < index_15:
                 return
-            elif self.rmi < 5:
-                self.order = self.buy()
             elif self.ema10[-1] < self.ema30[-1] and self.ema10[0] > self.ema30[0]:
                 self.order = self.buy()
             # Condition 1: Current Price > 150 SMA and > 200 SMA
             elif self.dataclose > self.ema30[0] and self.dataclose > self.ema15[0] and self.dataclose > self.ema10[0] \
-                and self.ema10[0] > self.ema30[0] and self.ema10[0] > self.ema15[0] and self.ema15[0] > self.ema30[0]:
+                    and self.ema10[0] > self.ema30[0] and self.ema10[0] > self.ema15[0] and self.ema15[0] > self.ema30[
+                0]:
                 self.order = self.buy()
 
     def stop(self):
@@ -143,7 +143,7 @@ class TestStrategy(bt.Strategy):
 
 
 if __name__ == '__main__':
-    result_file_name = "result-v7-with-rmi.csv"
+    result_file_name = "../result-v6-13year.csv"
     file = open(result_file_name, "w")
 
     good_stocks = ["NVDA", "ENPH", "IDXX", "MSFT", "GNRC", "CZR", "AAPL", "CPRT", "LRCX", "ALGN", "EPAM", "SEDG",
@@ -161,10 +161,10 @@ if __name__ == '__main__':
     good_stock_set = set(good_stocks)
     result_lines = []
     result_lines.append("ticker,cash,value,夏普比率,最大回撤\n")
-    file_names = os.listdir("data/yahoo")
+    file_names = os.listdir("../data/yahoo")
     # for file_name in file_names:
     # for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "ADBE.csv"]:
-    for file_name in ["AAPL.csv"]:
+    for file_name in ["NVDA.csv"]:
         ticker = file_name.strip(".csv")
         if ticker not in good_stock_set:
             print(ticker + "*******not in good stock *******")
@@ -205,14 +205,28 @@ if __name__ == '__main__':
         # Analyzer
         cerebro.addanalyzer(btanalyzers.SharpeRatio, _name='SharpeRatio')
         cerebro.addanalyzer(btanalyzers.DrawDown, _name='DrawDown')
+        cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='AnnualReturn')
+        cerebro.addanalyzer(bt.analyzers.SQN, _name='SQN')
+        cerebro.addanalyzer(bt.analyzers.VWR, _name='VWR')
+        cerebro.addanalyzer(bt.analyzers.TimeReturn, timeframe=bt.TimeFrame.Years, _name='TimeReturn_YEAR')
+        cerebro.addanalyzer(bt.analyzers.TimeReturn, timeframe=bt.TimeFrame.Months, _name='TimeReturn_Months')
+
+        cerebro.addanalyzer(bt.analyzers.PyFolio, _name='pyfolio')
+
 
         # 策略执行
         try:
-            thestrats = cerebro.run(maxcpus=4)
+            strats = cerebro.run(maxcpus=4)
         except IndexError:
             continue
         else:
-            thestrat = thestrats[0]
+            thestrat = strats[0]
+
+        pyfolio = thestrat.analyzers.getbyname('pyfolio')
+        returns, positions, transactions, gross_lev = pyfolio.get_pf_items()
+        print(returns)
+        returns.index = returns.index.tz_convert(None)
+        quantstats.reports.html(returns, output='stats.html', title='Stock Sentiment')
         sharp_radio = round(thestrat.analyzers.SharpeRatio.get_analysis()['sharperatio'], 2)
         max_retreat = round(thestrat.analyzers.DrawDown.get_analysis()['max']['drawdown'], 2)
         print('ticker:{}, 夏普比率:{},最大回撤:{}%'.format(ticker, sharp_radio, max_retreat))
@@ -220,6 +234,8 @@ if __name__ == '__main__':
         execute_result = "{},{},{},{},{}%\n".format(ticker, round(cerebro.broker.getcash()),
                                                     round(cerebro.broker.getvalue()), sharp_radio, max_retreat)
         result_lines.append(execute_result)
+        for alyzer in thestrat.analyzers:
+            alyzer.print()
 
     cerebro.plot()
     file.writelines(result_lines)

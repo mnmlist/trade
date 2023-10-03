@@ -3,21 +3,28 @@ import os
 
 import backtrader as bt
 import backtrader.analyzers as btanalyzers
-import numpy as np
 
-index_data = bt.feeds.GenericCSVData(
-    dataname='data/yahoo/' + "NASDAQ.csv",
-    fromdate=datetime.datetime(2010, 1, 1),
-    todate=datetime.datetime(2023, 7, 21),
-    dtformat='%Y-%m-%d',
-    datetime=0,
-    open=1,
-    high=2,
-    low=3,
-    close=4,
-    volume=5,
-    openinterest=5
-)
+
+# index_data = bt.feeds.GenericCSVData(
+#     dataname='data/yahoo/' + "NASDAQ.csv",
+#     fromdate=datetime.datetime(2010, 1, 1),
+#     todate=datetime.datetime(2023, 7, 21),
+#     dtformat='%Y-%m-%d',
+#     datetime=0,
+#     open=1,
+#     high=2,
+#     low=3,
+#     close=4,
+#     volume=5,
+#     openinterest=5
+# )
+
+
+def get_delta_day(d1, d2):
+    d1 = datetime.datetime.strptime(d1, '%Y-%m-%d')
+    d2 = datetime.datetime.strptime(d2, '%Y-%m-%d')
+    delta = d1 - d2
+    return delta.days
 
 class TestStrategy(bt.Strategy):
     """
@@ -28,18 +35,20 @@ class TestStrategy(bt.Strategy):
         dt = dt or self.datas[0].datetime.date(0)
         print('%s, %s' % (dt.isoformat(), txt))
 
-    def __init__(self):
-
+    def __init__(self, params=None):
         # 初始化相关数据
         self.dataclose = self.datas[0].close
-        self.index_close = self.datas[1].close
+        # self.index_close = self.datas[1].close
         self.order = None
         self.buyprice = None
         self.buycomm = None
+        self.global_sell_date = ''
 
-        self.year_highest = bt.ind.Highest(self.datas[0].high, period=260)
-        self.year_lowest = bt.ind.Lowest(self.datas[0].low, period=260)
+        self.ema2 = bt.indicators.ExponentialMovingAverage(
+            self.datas[0], period=10)
 
+        self.ema4 = bt.indicators.ExponentialMovingAverage(
+            self.datas[0], period=20)
 
         self.ema10 = bt.indicators.ExponentialMovingAverage(
             self.datas[0], period=50)
@@ -50,22 +59,16 @@ class TestStrategy(bt.Strategy):
         self.ema30 = bt.indicators.ExponentialMovingAverage(
             self.datas[0], period=200)
 
-        self.index_ema10 = bt.indicators.ExponentialMovingAverage(
-            self.datas[1], period=50)
-
-        self.index_ema15 = bt.indicators.ExponentialMovingAverage(
-            self.datas[1], period=150)
-
-        self.index_ema30 = bt.indicators.ExponentialMovingAverage(
-            self.datas[1], period=200)
-
-        # bt.indicators.ExponentialMovingAverage(self.datas[0], period=150)
-        # bt.indicators.WeightedMovingAverage(self.datas[0], period=150,
-        #                                     subplot=True)
-        # bt.indicators.StochasticSlow(self.datas[0])
-        # bt.indicators.MACDHisto(self.datas[0])
-        # rsi = bt.indicators.RSI(self.datas[0])
-        # bt.indicators.SmoothedMovingAverage(rsi, period=150)
+        # self.index_ema10 = bt.indicators.ExponentialMovingAverage(
+        #     self.datas[1], period=50)
+        #
+        # self.index_ema15 = bt.indicators.ExponentialMovingAverage(
+        #     self.datas[1], period=150)
+        #
+        # self.index_ema30 = bt.indicators.ExponentialMovingAverage(
+        #     self.datas[1], period=200)
+        self.ao = bt.indicators.AwesomeOscillator()
+        self.mo = bt.indicators.MomentumOscillator()
 
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
@@ -86,6 +89,8 @@ class TestStrategy(bt.Strategy):
                          (order.executed.price,
                           order.executed.value,
                           order.executed.comm, cerebro.broker.getcash(), cerebro.broker.getvalue(), self.dataclose[0]))
+
+                print("sell_date:{}".format(self.global_sell_date))
             self.bar_executed = len(self)
 
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -108,36 +113,43 @@ class TestStrategy(bt.Strategy):
         if self.order:
             return
 
-        # year_data_close = self.dataclose.get(-1, 260)
-        # low_of_52week = 0
-        # high_of_52week = 0
-        # if len(year_data_close) > 0:
-        #     low_of_52week = np.min(year_data_close)
-        #     high_of_52week = np.max(year_data_close)
-        # 上升趋势    and self.dataclose > low_of_52week * 1.3 and self.dataclose > high_of_52week * 0.75
-        index_10 = self.index_ema10[0]
-        index_15 = self.index_ema15[0]
-        index_30 = self.index_ema30[0]
-        index_close = self.index_close[0]
-        year_highest_close =  self.year_highest[0]
-        year_lowest_close = self.year_lowest[0]
-        cur_close = self.dataclose[0]
+        # index_10 = self.index_ema10[0]
+        # index_15 = self.index_ema15[0]
+        # index_30 = self.index_ema30[0]
+        # index_close = self.index_close[0]
         if self.position:
             if (self.ema10[-1] > self.ema30[-1] and self.ema10[0] < self.ema30[0]):
                 self.order = self.close()
-            elif self.dataclose < self.ema15[0]:
+            elif self.dataclose < self.ema30[0]:
+                # self.global_sell_date = str(self.datas[0].datetime.date(0))
                 self.order = self.close()
-            elif index_10 <= index_30 and index_close <= index_30:
+            elif self.ao >= 49:
+                self.global_sell_date = str(self.datas[0].datetime.date(0))
                 self.order = self.close()
+            # elif self.ao[-1] > 0 and self.ao[0] < 0:
+            #     self.global_sell_date = str(self.datas[0].datetime.date(0))
+            #     self.order = self.close()
+            # elif self.mo > 135:
+            #     self.global_sell_date = str(self.datas[0].datetime.date(0))
+            #     self.order = self.close()
         else:
-            if index_10 < index_30 or index_close < index_30:
+            cur_date = str(self.datas[0].datetime.date(0))
+            global_sell_date = self.global_sell_date
+            if global_sell_date == "":
+                self.global_sell_date = cur_date
+            delta_day = get_delta_day(cur_date, self.global_sell_date)
+            if global_sell_date != '' and delta_day < 120:
                 return
-            if cur_close < year_highest_close * 0.75 or cur_close < year_lowest_close * 1.3:
+            if self.dataclose <= self.ema4 or self.dataclose <= self.ema2:
+                return
+            if self.ao >= 49 or self.ao <= -30:
                 return
             if self.ema10[-1] < self.ema30[-1] and self.ema10[0] > self.ema30[0]:
                 self.order = self.buy()
             elif self.dataclose > self.ema30[0] and self.dataclose > self.ema15[0] and self.dataclose > self.ema10[0] \
                     and self.ema10[0] > self.ema30[0] and self.ema10[0] > self.ema15[0] and self.ema15[0] > self.ema30[0]:
+                self.order = self.buy()
+            elif self.ao[-1] < 0 and self.ao[0] > 0:
                 self.order = self.buy()
 
     def stop(self):
@@ -146,7 +158,7 @@ class TestStrategy(bt.Strategy):
 
 
 if __name__ == '__main__':
-    result_file_name = "result.csv"
+    result_file_name = "../result-v8-20101015.csv"
     file = open(result_file_name, "w")
 
     good_stocks = ["NVDA", "ENPH", "IDXX", "MSFT", "GNRC", "CZR", "AAPL", "CPRT", "LRCX", "ALGN", "EPAM", "SEDG",
@@ -163,10 +175,11 @@ if __name__ == '__main__':
                    "CRM", "TXN", "UNH", "V"]
     good_stock_set = set(good_stocks)
     result_lines = []
-    result_lines.append("ticker,cash,value,夏普比率,最大回撤\n")
-    file_names = os.listdir("data/yahoo")
-    # for file_name in file_names:
-    for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv"]:
+    result_lines.append("ticker,cash,value,SharpeRatio,DrawDown\n")
+    file_names = os.listdir("../data/yahoo")
+    for file_name in file_names:
+    # for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv"]:
+    # for file_name in ["NFLX.csv"]:
         ticker = file_name.strip(".csv")
         if ticker not in good_stock_set:
             print(ticker + "*******not in good stock *******")
@@ -182,8 +195,8 @@ if __name__ == '__main__':
         # Splits
         data = bt.feeds.GenericCSVData(
             dataname='data/yahoo/' + file_name,
-            fromdate=datetime.datetime(2015, 1, 1),
-            todate=datetime.datetime(2023, 7, 21),
+            fromdate=datetime.datetime(2010, 1, 1),
+            todate=datetime.datetime(2015, 7, 21),
             dtformat='%Y-%m-%d',
             datetime=0,
             open=1,
@@ -194,7 +207,7 @@ if __name__ == '__main__':
             openinterest=5
         )
         cerebro.adddata(data)
-        cerebro.adddata(index_data)
+        # cerebro.adddata(index_data)
 
         # 设定初始资金和佣金
         cerebro.broker.setcash(1000000.0)
@@ -211,18 +224,20 @@ if __name__ == '__main__':
         # 策略执行
         try:
             thestrats = cerebro.run(maxcpus=4)
-        except IndexError:
-            continue
-        else:
             thestrat = thestrats[0]
-        sharp_radio = round(thestrat.analyzers.SharpeRatio.get_analysis()['sharperatio'], 2)
-        max_retreat = round(thestrat.analyzers.DrawDown.get_analysis()['max']['drawdown'], 2)
-        print('ticker:{}, 夏普比率:{},最大回撤:{}%'.format(ticker, sharp_radio, max_retreat))
+            sharp_radio = round(thestrat.analyzers.SharpeRatio.get_analysis()['sharperatio'], 2)
+            max_retreat = round(thestrat.analyzers.DrawDown.get_analysis()['max']['drawdown'], 2)
+            print('ticker:{}, 夏普比率:{},最大回撤:{}%'.format(ticker, sharp_radio, max_retreat))
 
-        execute_result = "{},{},{},{},{}%\n".format(ticker, round(cerebro.broker.getcash()),
-                                                    round(cerebro.broker.getvalue()), sharp_radio, max_retreat)
-        result_lines.append(execute_result)
+            execute_result = "{},{},{},{},{}%\n".format(ticker, round(cerebro.broker.getcash()),
+                                                        round(cerebro.broker.getvalue()), sharp_radio, max_retreat)
+            result_lines.append(execute_result)
+        except IndexError as error:
+            print(error)
+        except Exception as ex:
+            print(ex)
 
-    # cerebro.plot()
     file.writelines(result_lines)
     file.flush()
+    cerebro.plot()
+

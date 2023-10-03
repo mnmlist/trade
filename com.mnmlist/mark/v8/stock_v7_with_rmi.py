@@ -5,6 +5,19 @@ import backtrader as bt
 import backtrader.analyzers as btanalyzers
 import numpy as np
 
+index_data = bt.feeds.GenericCSVData(
+    dataname='data/yahoo/' + "NASDAQ.csv",
+    fromdate=datetime.datetime(2010, 1, 1),
+    todate=datetime.datetime(2023, 7, 21),
+    dtformat='%Y-%m-%d',
+    datetime=0,
+    open=1,
+    high=2,
+    low=3,
+    close=4,
+    volume=5,
+    openinterest=5
+)
 
 class TestStrategy(bt.Strategy):
     """
@@ -19,6 +32,7 @@ class TestStrategy(bt.Strategy):
 
         # 初始化相关数据
         self.dataclose = self.datas[0].close
+        self.index_close = self.datas[1].close
         self.order = None
         self.buyprice = None
         self.buycomm = None
@@ -31,6 +45,24 @@ class TestStrategy(bt.Strategy):
 
         self.ema30 = bt.indicators.ExponentialMovingAverage(
             self.datas[0], period=200)
+
+        self.index_ema10 = bt.indicators.ExponentialMovingAverage(
+            self.datas[1], period=50)
+
+        self.index_ema15 = bt.indicators.ExponentialMovingAverage(
+            self.datas[1], period=150)
+
+        self.index_ema30 = bt.indicators.ExponentialMovingAverage(
+            self.datas[1], period=200)
+        self.rmi = bt.indicators.RSI_EMA()
+
+        # params = (
+        #     ('fast', 5),
+        #     ('slow', 34),
+        #     ('movav', MovAv.SMA),
+        # )
+        bt.indicators.AwesomeOscillator()
+        # bt.indicators.RSI_EMA()
 
         # bt.indicators.ExponentialMovingAverage(self.datas[0], period=150)
         # bt.indicators.WeightedMovingAverage(self.datas[0], period=150,
@@ -82,13 +114,23 @@ class TestStrategy(bt.Strategy):
         if self.order:
             return
 
+        index_10 = self.index_ema10[0]
+        index_15 = self.index_ema15[0]
+        index_30 = self.index_ema30[0]
+        index_close = self.index_close[0]
         if self.position:
-            if (self.ema10[-1] > self.ema30[-1] and self.ema10[0] < self.ema30[0]):
+            if self.rmi > 90:
+                self.order = self.close()
+            elif (self.ema10[-1] > self.ema30[-1] and self.ema10[0] < self.ema30[0]):
                 self.order = self.close()
             elif self.dataclose < self.ema15[0]:
                 self.order = self.close()
         else:
-            if self.ema10[-1] < self.ema30[-1] and self.ema10[0] > self.ema30[0]:
+            if index_10 > index_close and index_10 < index_15:
+                return
+            elif self.rmi < 5:
+                self.order = self.buy()
+            elif self.ema10[-1] < self.ema30[-1] and self.ema10[0] > self.ema30[0]:
                 self.order = self.buy()
             # Condition 1: Current Price > 150 SMA and > 200 SMA
             elif self.dataclose > self.ema30[0] and self.dataclose > self.ema15[0] and self.dataclose > self.ema10[0] \
@@ -101,7 +143,7 @@ class TestStrategy(bt.Strategy):
 
 
 if __name__ == '__main__':
-    result_file_name = "result-v4.csv"
+    result_file_name = "../result-v7-with-rmi.csv"
     file = open(result_file_name, "w")
 
     good_stocks = ["NVDA", "ENPH", "IDXX", "MSFT", "GNRC", "CZR", "AAPL", "CPRT", "LRCX", "ALGN", "EPAM", "SEDG",
@@ -119,9 +161,10 @@ if __name__ == '__main__':
     good_stock_set = set(good_stocks)
     result_lines = []
     result_lines.append("ticker,cash,value,夏普比率,最大回撤\n")
-    file_names = os.listdir("data/yahoo")
+    file_names = os.listdir("../data/yahoo")
     # for file_name in file_names:
-    for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv"]:
+    # for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "ADBE.csv"]:
+    for file_name in ["AAPL.csv"]:
         ticker = file_name.strip(".csv")
         if ticker not in good_stock_set:
             print(ticker + "*******not in good stock *******")
@@ -137,7 +180,7 @@ if __name__ == '__main__':
         # Splits
         data = bt.feeds.GenericCSVData(
             dataname='data/yahoo/' + file_name,
-            fromdate=datetime.datetime(2015, 1, 1),
+            fromdate=datetime.datetime(2010, 1, 1),
             todate=datetime.datetime(2023, 7, 21),
             dtformat='%Y-%m-%d',
             datetime=0,
@@ -149,6 +192,7 @@ if __name__ == '__main__':
             openinterest=5
         )
         cerebro.adddata(data)
+        cerebro.adddata(index_data)
 
         # 设定初始资金和佣金
         cerebro.broker.setcash(1000000.0)

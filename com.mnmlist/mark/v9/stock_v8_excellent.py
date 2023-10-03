@@ -140,9 +140,13 @@ class TestStrategy(bt.Strategy):
             delta_day = get_delta_day(cur_date, self.global_sell_date)
             if global_sell_date != '' and delta_day < 120:
                 return
-            if self.dataclose <= self.ema4 or self.dataclose <= self.ema2:
-                return
+            # if self.dataclose <= self.ema4 or self.dataclose <= self.ema2:
+            #     return
+            # 价格过热或过冷
             if self.ao >= 49 or self.ao <= -30:
+                return
+            # 价格小于长期均线，观望
+            if self.dataclose < self.ema30 or self.dataclose < self.ema15 or self.dataclose < self.ema10:
                 return
             if self.ema10[-1] < self.ema30[-1] and self.ema10[0] > self.ema30[0]:
                 self.order = self.buy()
@@ -158,7 +162,7 @@ class TestStrategy(bt.Strategy):
 
 
 if __name__ == '__main__':
-    result_file_name = "result-v8-20101015.csv"
+    result_file_name = "result-v9-13year.csv"
     file = open(result_file_name, "w")
 
     good_stocks = ["NVDA", "ENPH", "IDXX", "MSFT", "GNRC", "CZR", "AAPL", "CPRT", "LRCX", "ALGN", "EPAM", "SEDG",
@@ -176,10 +180,10 @@ if __name__ == '__main__':
     good_stock_set = set(good_stocks)
     result_lines = []
     result_lines.append("ticker,cash,value,SharpeRatio,DrawDown\n")
-    file_names = os.listdir("data/yahoo")
+    file_names = os.listdir("../data/yahoo")
     for file_name in file_names:
     # for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv"]:
-    # for file_name in ["NFLX.csv"]:
+    # for file_name in ["NVDA.csv"]:
         ticker = file_name.strip(".csv")
         if ticker not in good_stock_set:
             print(ticker + "*******not in good stock *******")
@@ -194,9 +198,9 @@ if __name__ == '__main__':
         # Date, Open, High, Low, Close, Volume, Dividends, Stock
         # Splits
         data = bt.feeds.GenericCSVData(
-            dataname='data/yahoo/' + file_name,
+            dataname='../data/yahoo/' + file_name,
             fromdate=datetime.datetime(2010, 1, 1),
-            todate=datetime.datetime(2015, 7, 21),
+            todate=datetime.datetime(2023, 7, 21),
             dtformat='%Y-%m-%d',
             datetime=0,
             open=1,
@@ -239,5 +243,5 @@ if __name__ == '__main__':
 
     file.writelines(result_lines)
     file.flush()
-    cerebro.plot()
+    # cerebro.plot()
 

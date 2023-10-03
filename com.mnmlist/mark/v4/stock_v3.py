@@ -127,7 +127,7 @@ class TestStrategy(bt.Strategy):
 
 
 if __name__ == '__main__':
-    result_file_name = "result_min_max_price.csv"
+    result_file_name = "../result_min_max_price.csv"
     file = open(result_file_name, "w")
 
     good_stocks = ["NVDA", "ENPH", "IDXX", "MSFT", "GNRC", "CZR", "AAPL", "CPRT", "LRCX", "ALGN", "EPAM", "SEDG",
@@ -145,7 +145,7 @@ if __name__ == '__main__':
     good_stock_set = set(good_stocks)
     result_lines = []
     result_lines.append("ticker,cash,value,夏普比率,最大回撤\n")
-    file_names = os.listdir("data/yahoo")
+    file_names = os.listdir("../data/yahoo")
     # for file_name in file_names:
     for file_name in ["NASDAQ.csv", "AAPL.csv", "GOOGL.csv"]:
         ticker = file_name.strip(".csv")
