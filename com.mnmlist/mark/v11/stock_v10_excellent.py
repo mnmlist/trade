@@ -182,7 +182,7 @@ class TestStrategy(bt.Strategy):
 
 
 if __name__ == '__main__':
-    result_file_name = "result-10.csv"
+    result_file_name = "result-v11.csv"
     file = open(result_file_name, "w")
 
     good_stocks = ["NVDA", "ENPH", "IDXX", "MSFT", "GNRC", "CZR", "AAPL", "CPRT", "LRCX", "ALGN", "EPAM", "SEDG",
@@ -203,7 +203,7 @@ if __name__ == '__main__':
     file_names = os.listdir("../data/yahoo")
     # for file_name in file_names:
     # for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv"]:
-    for file_name in ["ADBE.csv"]:
+    for file_name in ["TSLA.csv"]:
         ticker = file_name.strip(".csv")
         if ticker not in good_stock_set:
             print(ticker + "*******not in good stock *******")

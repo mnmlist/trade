@@ -150,7 +150,7 @@ class TestStrategy(bt.Strategy):
             if global_sell_date == "":
                 self.global_sell_date = cur_date
             delta_day = get_delta_day(cur_date, self.global_sell_date)
-            if global_sell_date != '' and delta_day < 60:
+            if global_sell_date != '' and delta_day < 120:
                 return
             # 价格过热或过冷
             if self.ao >= 49 or self.ao <= -30:
@@ -182,7 +182,7 @@ class TestStrategy(bt.Strategy):
 
 
 if __name__ == '__main__':
-    result_file_name = "result-10.csv"
+    result_file_name = "result-12-13year.csv"
     file = open(result_file_name, "w")
 
     good_stocks = ["NVDA", "ENPH", "IDXX", "MSFT", "GNRC", "CZR", "AAPL", "CPRT", "LRCX", "ALGN", "EPAM", "SEDG",
@@ -201,9 +201,9 @@ if __name__ == '__main__':
     result_lines = []
     result_lines.append("ticker,cash,value,SharpeRatio,DrawDown\n")
     file_names = os.listdir("../data/yahoo")
-    # for file_name in file_names:
+    for file_name in file_names:
     # for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv"]:
-    for file_name in ["ADBE.csv"]:
+    # for file_name in ["ADBE.csv"]:
         ticker = file_name.strip(".csv")
         if ticker not in good_stock_set:
             print(ticker + "*******not in good stock *******")
@@ -263,4 +263,4 @@ if __name__ == '__main__':
 
     file.writelines(result_lines)
     file.flush()
-    cerebro.plot()
+    # cerebro.plot()

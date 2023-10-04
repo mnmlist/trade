@@ -150,7 +150,7 @@ class TestStrategy(bt.Strategy):
             if global_sell_date == "":
                 self.global_sell_date = cur_date
             delta_day = get_delta_day(cur_date, self.global_sell_date)
-            if global_sell_date != '' and delta_day < 60:
+            if global_sell_date != '' and delta_day < 120:
                 return
             # 价格过热或过冷
             if self.ao >= 49 or self.ao <= -30:
@@ -182,34 +182,19 @@ class TestStrategy(bt.Strategy):
 
 
 if __name__ == '__main__':
-    result_file_name = "result-10.csv"
+    result_file_name = "result-v11-china.csv"
     file = open(result_file_name, "w")
-
-    good_stocks = ["NVDA", "ENPH", "IDXX", "MSFT", "GNRC", "CZR", "AAPL", "CPRT", "LRCX", "ALGN", "EPAM", "SEDG",
-                   "CDNS", "TSLA", "AMD", "MSCI", "ETSY", "ANET", "WST", "DXCM", "MRNA", "SNPS", "AMAT", "CTAS", "BIO",
-                   "STLD", "ADBE", "POOL", "PWR", "ANSS", "MU", "MPC", "LYV", "SPGI", "FTNT", "MCO", "TTWO", "URI",
-                   "MTCH", "PYPL", "LLY", "INTU", "PAYC", "MSI", "DHI", "ODFL", "AJG", "BX", "CSGP", "ISRG", "CDW",
-                   "DVN", "ON", "BRO", "PGR", "ROK", "CMA", "KEYS", "TER", "MS", "FDX", "TT", "META", "NFLX", "ACN",
-                   "PTC", "ACGL", "NTAP", "GRMN", "VLO", "ZTS", "LW", "NASDAQ", "ETN", "CMG", "CHTR", "ZBRA", "TDG",
-                   "AXON", "AMZN", "PNC", "BLK", "GOOG", "JPM", "NOW", "TGT", "TEL", "CRL", "MPWR", "SCHW", "AME",
-                   "FICO", "NSC", "TXT", "SHW", "EL", "COST", "AVGO", "MTD", "AMP", "GOOGL", "BBWI", "TRMB", "COP",
-                   "TECH", "CTLT", "LEN", "ABBV", "TYL", "FSLR", "NOC", "ALB", "ITW", "ORLY", "BR", "TRGP", "MMC",
-                   "RJF", "DE", "CAT", "CBRE", "PODD", "DXC", "KLAC", "NVR", "BAC", "ZION", "HD", "NXPI", "DHR", "OXY",
-                   "FITB", "ADSK", "GWW", "ROL", "MRO", "DRI", "RSG", "VRSK", "CF", "CSX", "APH", "ADM", "DOV", "STX",
-                   "CRM", "TXN", "UNH", "V"]
-    good_stock_set = set(good_stocks)
     result_lines = []
     result_lines.append("ticker,cash,value,SharpeRatio,DrawDown\n")
-    file_names = os.listdir("../data/yahoo")
-    # for file_name in file_names:
+    file_names = os.listdir("/Users/sting/Documents/stock/StockChina/processed_data/")
+    count = 0
+    for file_name in file_names:
     # for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv"]:
-    for file_name in ["ADBE.csv"]:
+    # for file_name in ["000001.XSHE.csv"]:
+        count = count + 1
+        if count > 100:
+            break
         ticker = file_name.strip(".csv")
-        if ticker not in good_stock_set:
-            print(ticker + "*******not in good stock *******")
-            continue
-        print("******IN GOOD STOCK********" + file_name)
-
         # 初始化模型
         cerebro = bt.Cerebro()
 
@@ -218,15 +203,15 @@ if __name__ == '__main__':
         # Date, Open, High, Low, Close, Volume, Dividends, Stock
         # Splits
         data = bt.feeds.GenericCSVData(
-            dataname='../data/yahoo/' + file_name,
+            dataname='/Users/sting/Documents/stock/StockChina/processed_data/' + file_name,
             fromdate=datetime.datetime(2010, 1, 1),
             todate=datetime.datetime(2023, 7, 21),
             dtformat='%Y-%m-%d',
             datetime=0,
             open=1,
-            high=2,
-            low=3,
-            close=4,
+            high=3,
+            low=4,
+            close=2,
             volume=5,
             openinterest=5
         )

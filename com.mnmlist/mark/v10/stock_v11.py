@@ -79,6 +79,8 @@ class TestStrategy(bt.Strategy):
         self.ad = bt.talib.AD(self.datas[0].high, self.datas[0].low, self.datas[0].close, self.datas[0].volume)
         self.adosc = bt.talib.ADOSC(self.datas[0].high, self.datas[0].low, self.datas[0].close, self.datas[0].volume, fastperiod=5, slowperiod=20)
         self.obv = bt.talib.OBV(self.datas[0].close, self.datas[0].volume)
+        self.trima = bt.talib.TRIMA(self.datas[0].close)
+
 
 
     def notify_order(self, order):
@@ -224,7 +226,7 @@ if __name__ == '__main__':
         # Splits
         data = bt.feeds.GenericCSVData(
             dataname='../data/yahoo/' + file_name,
-            fromdate=datetime.datetime(2010, 1, 1),
+            fromdate=datetime.datetime(2019, 1, 1),
             todate=datetime.datetime(2023, 7, 21),
             dtformat='%Y-%m-%d',
             datetime=0,

@@ -71,7 +71,7 @@ class TestStrategy(bt.Strategy):
         self.ao = bt.indicators.AwesomeOscillator()
         # self.ao_year_high = bt.ind.Highest(self.ao, period=60)
         # self.ao_month_high = bt.ind.Highest(self.ao, period=20)
-        # self.close_high = bt.ind.Highest(self.dataclose, period=10)
+        self.cut_price = -1
 
         self.mo = bt.indicators.MomentumOscillator()
         self.rmi = bt.indicators.RSI_EMA()
@@ -98,6 +98,7 @@ class TestStrategy(bt.Strategy):
                           order.executed.comm, cerebro.broker.getcash(), cerebro.broker.getvalue(), self.dataclose[0]))
 
                 print("sell_date:{}".format(self.global_sell_date))
+                self.cut_price = -1
             self.bar_executed = len(self)
 
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -124,13 +125,18 @@ class TestStrategy(bt.Strategy):
         # index_15 = self.index_ema15[0]
         # index_30 = self.index_ema30[0]
         # index_close = self.index_close[0]
+        self.cut_price = max(self.cut_price, self.dataclose * 0.8)
+
         if self.position:
             # if self.dataclose < self.global_buy_price and (self.global_buy_price - self.dataclose) / self.global_buy_price > 0.10:
             #     print("止损, self.dataclose:{}, self.global_buy_price:{}, 距离最高点回落:{}".format(self.dataclose, self.global_buy_price, (
             #                                                                                            self.global_buy_price - self.dataclose) / self.global_buy_price))
             #     self.global_sell_date = str(self.datas[0].datetime.date(0))
             #     self.order = self.close()
-            if (self.ema10[-1] > self.ema30[-1] and self.ema10[0] < self.ema30[0]):
+            if self.dataclose < self.cut_price:
+                # self.global_sell_date = str(self.datas[0].datetime.date(0))
+                self.order = self.close()
+            elif (self.ema10[-1] > self.ema30[-1] and self.ema10[0] < self.ema30[0]):
                 self.order = self.close()
             elif self.dataclose < self.ema30[0]:
                 # self.global_sell_date = str(self.datas[0].datetime.date(0))
@@ -202,8 +208,8 @@ if __name__ == '__main__':
     result_lines.append("ticker,cash,value,SharpeRatio,DrawDown\n")
     file_names = os.listdir("../data/yahoo")
     # for file_name in file_names:
-    # for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv"]:
-    for file_name in ["ADBE.csv"]:
+    for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv","ENPH.csv","ADBE.csv"]:
+    # for file_name in ["ADBE.csv"]:
         ticker = file_name.strip(".csv")
         if ticker not in good_stock_set:
             print(ticker + "*******not in good stock *******")
@@ -245,16 +251,17 @@ if __name__ == '__main__':
         cerebro.addanalyzer(btanalyzers.SharpeRatio, _name='SharpeRatio')
         cerebro.addanalyzer(btanalyzers.DrawDown, _name='DrawDown')
 
-        # 策略执行
         try:
             thestrats = cerebro.run(maxcpus=4)
             thestrat = thestrats[0]
             sharp_radio = round(thestrat.analyzers.SharpeRatio.get_analysis()['sharperatio'], 2)
             max_retreat = round(thestrat.analyzers.DrawDown.get_analysis()['max']['drawdown'], 2)
-            print('ticker:{}, 夏普比率:{},最大回撤:{}%'.format(ticker, sharp_radio, max_retreat))
+            bonus_rate = round((cerebro.broker.getvalue() / 1000000 - 1) * 100, 2)
+            print('ticker:{}, 夏普比率:{},最大回撤:{}%,收益:{}%'.format(ticker, sharp_radio, max_retreat, bonus_rate))
 
-            execute_result = "{},{},{},{},{}%\n".format(ticker, round(cerebro.broker.getcash()),
-                                                        round(cerebro.broker.getvalue()), sharp_radio, max_retreat)
+            execute_result = "{},{},{},{},{},{}%\n".format(ticker, round(cerebro.broker.getcash()),
+                                                           round(cerebro.broker.getvalue()), sharp_radio, max_retreat,
+                                                           bonus_rate)
             result_lines.append(execute_result)
         except IndexError as error:
             print(error)
@@ -263,4 +270,6 @@ if __name__ == '__main__':
 
     file.writelines(result_lines)
     file.flush()
-    cerebro.plot()
+    for ticker_result in result_lines:
+        print(ticker_result)
+    # cerebro.plot()
