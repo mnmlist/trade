@@ -29,9 +29,9 @@ def get_delta_day(d1, d2):
 
 def up_trend(self):
     count = 0
-    pre = self.ema4[0]
+    pre = self.ema2[0]
     for i in range(1, 10):
-        cur = self.ema4[-i]
+        cur = self.ema2[-i]
         if pre >= cur:
             count = count + 1
         pre = cur
@@ -40,12 +40,12 @@ def up_trend(self):
 def down_trend(self):
     count = 0
     pre = self.ema15[0]
-    for i in range(1, 6):
+    for i in range(1, 4):
         cur = self.ema15[-i]
         if pre <= cur:
             count = count + 1
         pre = cur
-    return count >= 4
+    return count >= 3
 
 
 class TestStrategy(bt.Strategy):
@@ -242,8 +242,8 @@ if __name__ == '__main__':
     result_lines.append("ticker,cash,value,sharpeRatio,drawDown,bonusRatio\n")
     file_names = os.listdir("../data/yahoo")
     # for file_name in file_names:
-    for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv","ENPH.csv","ADBE.csv", "BABA.csv", "PDD.csv"]:
-    # for file_name in ["NVDA.csv"]:
+    # for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv","ENPH.csv","ADBE.csv", "BABA.csv", "PDD.csv"]:
+    for file_name in ["ENPH.csv"]:
         ticker = file_name.strip(".csv")
         if ticker not in good_stock_set:
             print(ticker + "*******not in good stock *******")
