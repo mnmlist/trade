@@ -236,14 +236,14 @@ if __name__ == '__main__':
                    "TECH", "CTLT", "LEN", "ABBV", "TYL", "FSLR", "NOC", "ALB", "ITW", "ORLY", "BR", "TRGP", "MMC",
                    "RJF", "DE", "CAT", "CBRE", "PODD", "DXC", "KLAC", "NVR", "BAC", "ZION", "HD", "NXPI", "DHR", "OXY",
                    "FITB", "ADSK", "GWW", "ROL", "MRO", "DRI", "RSG", "VRSK", "CF", "CSX", "APH", "ADM", "DOV", "STX",
-                   "CRM", "TXN", "UNH", "V"]
+                   "CRM", "TXN", "UNH", "V", "BABA"]
     good_stock_set = set(good_stocks)
     result_lines = []
     result_lines.append("ticker,cash,value,sharpeRatio,drawDown,bonusRatio\n")
     file_names = os.listdir("../data/yahoo")
-    for file_name in file_names:
+    # for file_name in file_names:
     # for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv","ENPH.csv","ADBE.csv"]:
-    # for file_name in ["NVDA.csv"]:
+    for file_name in ["BABA.csv"]:
         ticker = file_name.strip(".csv")
         if ticker not in good_stock_set:
             print(ticker + "*******not in good stock *******")
@@ -306,4 +306,4 @@ if __name__ == '__main__':
     file.flush()
     for ticker_result in result_lines:
         print(ticker_result)
-    # cerebro.plot()
+    cerebro.plot()
