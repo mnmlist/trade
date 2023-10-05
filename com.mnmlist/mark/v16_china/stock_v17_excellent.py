@@ -92,7 +92,8 @@ class TestStrategy(bt.Strategy):
         #     self.datas[1], period=200)
         self.ao = bt.indicators.AwesomeOscillator()
         # self.ao_year_high = bt.ind.Highest(self.ao, period=130)
-        self.close_10day_high = bt.ind.Highest(self.dataclose, period=10)
+        self.close_10day_high = bt.ind.Highest(self.dataclose, period=2)
+        self.close_10day_low = bt.ind.Lowest(self.dataclose, period=3)
         self.cut_price = -1
 
         # self.mo = bt.indicators.MomentumOscillator()
@@ -164,10 +165,12 @@ class TestStrategy(bt.Strategy):
         self.cut_price = max(self.cut_price, self.dataclose * 0.80)
 
         if self.position:
-            on_down_trend = down_trend(self)
-            if on_down_trend:
+            # on_down_trend = down_trend(self)
+            # if on_down_trend:
+            #     self.order = self.close()
+            if self.close_10day_high / self.dataclose > 1.15:
                 self.order = self.close()
-            elif self.dataclose < self.cut_price:
+            if self.dataclose < self.cut_price:
                 # self.global_sell_date = str(self.datas[0].datetime.date(0))
                 self.order = self.close()
             elif (self.ema10[-1] > self.ema30[-1] and self.ema10[0] < self.ema30[0]):
@@ -177,8 +180,8 @@ class TestStrategy(bt.Strategy):
                 self.order = self.close()
             elif self.dataclose > self.ema30 and (self.dataclose - self.ema30)/self.dataclose > 0.6:
                 self.order = self.close()
-            elif self.close_10day_high > self.dataclose and (self.close_10day_high - self.dataclose) / self.dataclose > 0.20:
-                self.order = self.close()
+            # elif self.close_10day_high > self.dataclose and (self.close_10day_high - self.dataclose) / self.dataclose > 0.20:
+            #     self.order = self.close()
         else:
             cur_date = str(self.datas[0].datetime.date(0))
             latest_sell_date = self.latest_sell_date
@@ -197,8 +200,11 @@ class TestStrategy(bt.Strategy):
 
             if self.dataclose < self.close_month_high and (self.close_month_high - self.dataclose) / self.dataclose > 0.20:
                 return
-            in_up_trend = bool(up_trend(self))
-            if not in_up_trend:
+            # in_up_trend = bool(up_trend(self))
+            # if not in_up_trend:
+            #     return
+
+            if self.dataclose / self.close_10day_low > 1.1:
                 return
 
             # MACD穿越
@@ -222,7 +228,7 @@ class TestStrategy(bt.Strategy):
 
 
 if __name__ == '__main__':
-    result_file_name = "result-v17.csv"
+    result_file_name = "result-v17-excellent-little-sudden-high.csv"
     file = open(result_file_name, "w")
 
     good_stocks = ["NVDA", "ENPH", "IDXX", "MSFT", "GNRC", "CZR", "AAPL", "CPRT", "LRCX", "ALGN", "EPAM", "SEDG",
@@ -241,9 +247,9 @@ if __name__ == '__main__':
     result_lines = []
     result_lines.append("ticker,cash,value,sharpeRatio,drawDown,bonusRatio\n")
     file_names = os.listdir("../data/yahoo")
-    # for file_name in file_names:
+    for file_name in file_names:
     # for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv","ENPH.csv","ADBE.csv", "BABA.csv", "PDD.csv"]:
-    for file_name in ["ENPH.csv"]:
+    # for file_name in ["NVDA.csv"]:
         ticker = file_name.strip(".csv")
         if ticker not in good_stock_set:
             print(ticker + "*******not in good stock *******")
@@ -306,4 +312,4 @@ if __name__ == '__main__':
     file.flush()
     for ticker_result in result_lines:
         print(ticker_result)
-    cerebro.plot()
+    # cerebro.plot()
