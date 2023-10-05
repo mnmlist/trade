@@ -27,6 +27,26 @@ def get_delta_day(d1, d2):
     delta = d1 - d2
     return delta.days
 
+def up_trend(self):
+    count = 0
+    pre = self.ema4[0]
+    for i in range(1, 10):
+        cur = self.ema4[-i]
+        if pre >= cur:
+            count = count + 1
+        pre = cur
+    return count >= 6
+
+def down_trend(self):
+    count = 0
+    pre = self.ema15[0]
+    for i in range(1, 6):
+        cur = self.ema15[-i]
+        if pre <= cur:
+            count = count + 1
+        pre = cur
+    return count >= 4
+
 
 class TestStrategy(bt.Strategy):
     """
@@ -47,8 +67,8 @@ class TestStrategy(bt.Strategy):
         self.global_sell_date = ''
         self.latest_sell_date = ''
         self.global_buy_price = self.dataclose
-        # self.ema2 = bt.indicators.ExponentialMovingAverage(
-        #     self.datas[0], period=10)
+        self.ema2 = bt.indicators.ExponentialMovingAverage(
+            self.datas[0], period=10)
 
         self.ema4 = bt.indicators.ExponentialMovingAverage(
             self.datas[0], period=20)
@@ -144,7 +164,10 @@ class TestStrategy(bt.Strategy):
         self.cut_price = max(self.cut_price, self.dataclose * 0.80)
 
         if self.position:
-            if self.dataclose < self.cut_price:
+            on_down_trend = down_trend(self)
+            if on_down_trend:
+                self.order = self.close()
+            elif self.dataclose < self.cut_price:
                 # self.global_sell_date = str(self.datas[0].datetime.date(0))
                 self.order = self.close()
             elif (self.ema10[-1] > self.ema30[-1] and self.ema10[0] < self.ema30[0]):
@@ -158,13 +181,6 @@ class TestStrategy(bt.Strategy):
                 self.order = self.close()
         else:
             cur_date = str(self.datas[0].datetime.date(0))
-            # global_sell_date = self.global_sell_date
-            # if global_sell_date == "":
-            #     self.global_sell_date = cur_date
-            # delta_day = get_delta_day(cur_date, self.global_sell_date)
-            # if global_sell_date != '' and delta_day < 60:
-            #     return
-
             latest_sell_date = self.latest_sell_date
             if latest_sell_date == "":
                 self.latest_sell_date = cur_date
@@ -179,13 +195,12 @@ class TestStrategy(bt.Strategy):
             if self.dataclose > self.ema30 and (self.dataclose - self.ema30)/self.dataclose > 0.5:
                 return
 
-            # if self.ao > 0 and self.ao_month_high / self.ao < 2:
-            #     return
-
             if self.dataclose < self.close_month_high and (self.close_month_high - self.dataclose) / self.dataclose > 0.20:
                 return
-            # if self.ao_month_high * 3 < self.ao_year_high:
-            #     return
+            in_up_trend = bool(up_trend(self))
+            if not in_up_trend:
+                return
+
             # MACD穿越
             if self.ema10[-1] < self.ema30[-1] and self.ema10[0] > self.ema30[0]\
                     and self.dataclose > self.ema30[0] and self.dataclose > self.ema15[0] and self.dataclose > self.ema10[0]:
@@ -228,7 +243,7 @@ if __name__ == '__main__':
     file_names = os.listdir("../data/yahoo")
     # for file_name in file_names:
     for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv","ENPH.csv","ADBE.csv", "BABA.csv", "PDD.csv"]:
-    # for file_name in ["TSLA.csv"]:
+    # for file_name in ["NVDA.csv"]:
         ticker = file_name.strip(".csv")
         if ticker not in good_stock_set:
             print(ticker + "*******not in good stock *******")
