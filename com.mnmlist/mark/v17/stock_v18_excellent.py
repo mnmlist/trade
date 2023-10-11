@@ -39,13 +39,13 @@ def up_trend(self):
 
 def down_trend(self):
     count = 0
-    pre = self.ema15[0]
-    for i in range(1, 4):
-        cur = self.ema15[-i]
+    pre = self.ema2[0]
+    for i in range(1, 13):
+        cur = self.ema2[-i]
         if pre <= cur:
             count = count + 1
         pre = cur
-    return count >= 3
+    return count >= 10
 
 
 class TestStrategy(bt.Strategy):
@@ -165,9 +165,9 @@ class TestStrategy(bt.Strategy):
         self.cut_price = max(self.cut_price, self.dataclose * 0.80)
 
         if self.position:
-            # on_down_trend = down_trend(self)
-            # if on_down_trend:
-            #     self.order = self.close()
+            on_down_trend = down_trend(self)
+            if on_down_trend:
+                self.order = self.close()
             if self.close_10day_high / self.dataclose > 1.15:
                 self.order = self.close()
             if self.dataclose < self.cut_price:
@@ -228,7 +228,7 @@ class TestStrategy(bt.Strategy):
 
 
 if __name__ == '__main__':
-    result_file_name = "result-v18.csv"
+    result_file_name = "/Users/sting/PycharmProjects/trade/com.mnmlist/mark/v17/result-v18-all-sp500.csv"
     file = open(result_file_name, "w")
 
     good_stocks = ["NVDA", "ENPH", "IDXX", "MSFT", "GNRC", "CZR", "AAPL", "CPRT", "LRCX", "ALGN", "EPAM", "SEDG",
@@ -247,14 +247,14 @@ if __name__ == '__main__':
     result_lines = []
     result_lines.append("ticker,cash,value,sharpeRatio,drawDown,bonusRatio\n")
     file_names = os.listdir("../data/yahoo")
-    # for file_name in file_names:
-    for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv","ENPH.csv","ADBE.csv", "BABA.csv", "PDD.csv"]:
-    # for file_name in ["NVDA.csv"]:
+    for file_name in file_names:
+    # for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv","ENPH.csv","ADBE.csv", "BABA.csv", "PDD.csv"]:
+    # for file_name in ["BABA.csv"]:
         ticker = file_name.strip(".csv")
-        if ticker not in good_stock_set:
-            print(ticker + "*******not in good stock *******")
-            continue
-        print("******IN GOOD STOCK********" + file_name)
+        # if ticker not in good_stock_set:
+        #     print(ticker + "*******not in good stock *******")
+        #     continue
+        # print("******IN GOOD STOCK********" + file_name)
 
         # 初始化模型
         cerebro = bt.Cerebro()
@@ -312,4 +312,4 @@ if __name__ == '__main__':
     file.flush()
     for ticker_result in result_lines:
         print(ticker_result)
-    # cerebro.plot()
+    cerebro.plot()

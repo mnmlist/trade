@@ -27,6 +27,26 @@ def get_delta_day(d1, d2):
     delta = d1 - d2
     return delta.days
 
+def up_trend(self):
+    count = 0
+    pre = self.ema2[0]
+    for i in range(1, 10):
+        cur = self.ema2[-i]
+        if pre >= cur:
+            count = count + 1
+        pre = cur
+    return count >= 6
+
+def down_trend(self):
+    count = 0
+    pre = self.ema2[0]
+    for i in range(1, 13):
+        cur = self.ema2[-i]
+        if pre <= cur:
+            count = count + 1
+        pre = cur
+    return count >= 10
+
 
 class TestStrategy(bt.Strategy):
     """
@@ -47,8 +67,8 @@ class TestStrategy(bt.Strategy):
         self.global_sell_date = ''
         self.latest_sell_date = ''
         self.global_buy_price = self.dataclose
-        # self.ema2 = bt.indicators.ExponentialMovingAverage(
-        #     self.datas[0], period=10)
+        self.ema2 = bt.indicators.ExponentialMovingAverage(
+            self.datas[0], period=10)
 
         self.ema4 = bt.indicators.ExponentialMovingAverage(
             self.datas[0], period=20)
@@ -61,17 +81,27 @@ class TestStrategy(bt.Strategy):
 
         self.ema30 = bt.indicators.ExponentialMovingAverage(
             self.datas[0], period=200)
+
+        # self.index_ema10 = bt.indicators.ExponentialMovingAverage(
+        #     self.datas[1], period=50)
+        #
+        # self.index_ema15 = bt.indicators.ExponentialMovingAverage(
+        #     self.datas[1], period=150)
+        #
+        # self.index_ema30 = bt.indicators.ExponentialMovingAverage(
+        #     self.datas[1], period=200)
         self.ao = bt.indicators.AwesomeOscillator()
         # self.ao_year_high = bt.ind.Highest(self.ao, period=130)
-        self.close_10day_high = bt.ind.Highest(self.dataclose, period=3)
-        self.close_month_high = bt.ind.Highest(self.dataclose, period=10)
-        self.ao_month_high = bt.ind.Highest(self.ao, period=260)
+        self.close_10day_high = bt.ind.Highest(self.dataclose, period=2)
+        self.close_10day_low = bt.ind.Lowest(self.dataclose, period=2)
         self.cut_price = -1
 
         # self.mo = bt.indicators.MomentumOscillator()
         self.rmi = bt.indicators.RSI_EMA()
         # self.MACDHisto = bt.indicators.MACDHisto()
-        # self.macd = bt.indicators.MACD()
+        # self.MACD = bt.indicators.MACD()
+        self.close_month_high = bt.ind.Highest(self.dataclose, period=20)
+        # self.ao_month_high = bt.ind.Highest(self.ao, period=260)
 
 
         # real = MFI(df.high, df.low, df.close, df.volume, timeperiod=14)
@@ -132,60 +162,61 @@ class TestStrategy(bt.Strategy):
         # index_15 = self.index_ema15[0]
         # index_30 = self.index_ema30[0]
         # index_close = self.index_close[0]
-        self.cut_price = max(self.cut_price, self.dataclose * 0.8)
+        self.cut_price = max(self.cut_price, self.dataclose * 0.80)
 
         if self.position:
+            on_down_trend = down_trend(self)
+            if on_down_trend:
+                self.order = self.close()
+            if self.close_10day_high / self.dataclose > 1.15:
+                self.order = self.close()
             if self.dataclose < self.cut_price:
                 # self.global_sell_date = str(self.datas[0].datetime.date(0))
                 self.order = self.close()
-            elif (self.ema10[-1] > self.ema15[-1] and self.ema10[0] < self.ema15[0]):
+            elif (self.ema10[-1] > self.ema30[-1] and self.ema10[0] < self.ema30[0]):
                 self.order = self.close()
-            elif self.dataclose < self.ema10[0]:
+            elif self.dataclose < self.ema15[0]:
                 # self.global_sell_date = str(self.datas[0].datetime.date(0))
                 self.order = self.close()
-            elif self.close_10day_high > self.dataclose and (self.close_10day_high - self.dataclose) / self.close_10day_high > 0.10:
+            elif self.dataclose > self.ema30 and (self.dataclose - self.ema30)/self.dataclose > 0.6:
                 self.order = self.close()
+            # elif self.close_10day_high > self.dataclose and (self.close_10day_high - self.dataclose) / self.dataclose > 0.20:
+            #     self.order = self.close()
         else:
             cur_date = str(self.datas[0].datetime.date(0))
-            # global_sell_date = self.global_sell_date
-            # if global_sell_date == "":
-            #     self.global_sell_date = cur_date
-            # delta_day = get_delta_day(cur_date, self.global_sell_date)
-            # if global_sell_date != '' and delta_day < 10:
-            #     return
-
             latest_sell_date = self.latest_sell_date
             if latest_sell_date == "":
                 self.latest_sell_date = cur_date
             latest_delta_day = get_delta_day(cur_date, self.latest_sell_date)
-            if latest_delta_day != '' and latest_delta_day < 5:
+            if latest_delta_day != '' and latest_delta_day < 10:
                 return
-
-            if self.ao > 0 and self.ao_month_high / self.ao < 3:
-                return
-
-            if self.dataclose < self.close_month_high and (self.close_month_high - self.dataclose) / self.dataclose > 0.1:
-                return
-
             # 价格小于长期均线，观望
-            if self.dataclose < self.ema15 or self.dataclose < self.ema10:
+            if self.dataclose < self.ema30 or self.dataclose < self.ema15:
                 return
-            # if self.rmi <= 50 or self.rmi >= 75:
+            if self.rmi <= 30 or self.rmi >= 75:
+                return
+            if self.dataclose > self.ema30 and (self.dataclose - self.ema30)/self.dataclose > 0.5:
+                return
+
+            if self.dataclose < self.close_month_high and (self.close_month_high - self.dataclose) / self.dataclose > 0.20:
+                return
+            # in_up_trend = bool(up_trend(self))
+            # if not in_up_trend:
             #     return
-            # if self.dataclose > self.ema15 and (self.dataclose - self.ema15)/self.dataclose > 0.6:
-            #     return
-            # if self.ao_month_high * 3 < self.ao_year_high:
-            #     return
+
+            if self.dataclose / self.close_10day_low > 1.15:
+                return
+
             # MACD穿越
-            if self.ema4[-1] < self.ema10[-1] and self.ema4[0] > self.ema10[0]\
-                    and self.dataclose > self.ema10[0] and self.dataclose > self.ema4:
+            if self.ema10[-1] < self.ema30[-1] and self.ema10[0] > self.ema30[0]\
+                    and self.dataclose > self.ema30[0] and self.dataclose > self.ema15[0] and self.dataclose > self.ema10[0]:
                 print("Cross Over match, ema10[-1]:{}, self.ema30[-1]:{}, self.ema10[0]:{}, self.ema30[0]:{}".format(
                     self.ema10[-1], self.ema30[-1], self.ema10[0], self.ema30[0]))
                 self.order = self.buy()
-            elif self.dataclose > self.ema30[0] and self.dataclose > self.ema15[0] and self.dataclose > self.ema10[0] and self.dataclose > self.ema4 \
-                     and self.ema10[0] > self.ema15[0] and self.ema4 > self.ema10[0]:
+            elif self.dataclose > self.ema30[0] and self.dataclose > self.ema15[0] and self.dataclose > self.ema10[0]\
+                    and self.ema10[0] > self.ema30[0] and self.ema10[0] > self.ema15[0]:
                 self.order = self.buy()
-            elif self.ao[-3] < 0 and self.ao[0] >= 0 and self.dataclose > self.ema4 and self.ema4 > self.ema10[0] and self.dataclose > self.ema10[0]:
+            elif self.ao[-1] < 0 and self.ao[0] > 0:
                 if self.ao[-5] * self.ao[-20] > 0:
                     print("AO match, date:{}, self.ao[-1]:{}, self.ao[0]:{}, self.ao[-5]:{},self.ao[-20]:{}".format(
                         self.datas[0].datetime.date(0), self.ao[-1], self.ao[0], self.ao[-5], self.ao[-20]))
@@ -197,7 +228,7 @@ class TestStrategy(bt.Strategy):
 
 
 if __name__ == '__main__':
-    result_file_name = "result-v15.csv"
+    result_file_name = "/Users/sting/PycharmProjects/trade/com.mnmlist/mark/v17/result-v18-BTC-USD.csv"
     file = open(result_file_name, "w")
 
     good_stocks = ["NVDA", "ENPH", "IDXX", "MSFT", "GNRC", "CZR", "AAPL", "CPRT", "LRCX", "ALGN", "EPAM", "SEDG",
@@ -211,13 +242,13 @@ if __name__ == '__main__':
                    "TECH", "CTLT", "LEN", "ABBV", "TYL", "FSLR", "NOC", "ALB", "ITW", "ORLY", "BR", "TRGP", "MMC",
                    "RJF", "DE", "CAT", "CBRE", "PODD", "DXC", "KLAC", "NVR", "BAC", "ZION", "HD", "NXPI", "DHR", "OXY",
                    "FITB", "ADSK", "GWW", "ROL", "MRO", "DRI", "RSG", "VRSK", "CF", "CSX", "APH", "ADM", "DOV", "STX",
-                   "CRM", "TXN", "UNH", "V", "BTC-USD"]
+                   "CRM", "TXN", "UNH", "V", "BABA", "PDD", "BTC-USD"]
     good_stock_set = set(good_stocks)
     result_lines = []
     result_lines.append("ticker,cash,value,sharpeRatio,drawDown,bonusRatio\n")
     file_names = os.listdir("../data/yahoo")
     # for file_name in file_names:
-    # for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv","ENPH.csv","ADBE.csv"]:
+    # for file_name in ["AAPL.csv", "NVDA.csv", "GOOGL.csv", "MSFT.csv", "TSLA.csv", "NFLX.csv","ENPH.csv","ADBE.csv", "BABA.csv", "PDD.csv"]:
     for file_name in ["BTC-USD.csv"]:
         ticker = file_name.strip(".csv")
         if ticker not in good_stock_set:
@@ -234,8 +265,8 @@ if __name__ == '__main__':
         # Splits
         data = bt.feeds.GenericCSVData(
             dataname='../data/yahoo/' + file_name,
-            fromdate=datetime.datetime(2022, 5, 1),
-            todate=datetime.datetime(2023, 10, 5),
+            fromdate=datetime.datetime(2022, 4, 1),
+            todate=datetime.datetime(2023, 7, 21),
             dtformat='%Y-%m-%d',
             datetime=0,
             open=1,
